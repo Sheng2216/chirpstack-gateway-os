@@ -30,6 +30,7 @@ jobs:
           -v $PWD:/workdir \
           -w /workdir \
           --user root \
+          -e QUILT_PATCHES=/workdir/conf/patches \
           chirpstack-gateway-os-builder \
           bash -c "
             # 配置 Git 安全目录
@@ -43,6 +44,11 @@ jobs:
             ln -sf ../conf/files openwrt/files && \
             cd openwrt && ./scripts/feeds update -a && \
             ./scripts/feeds install -a && \
+            
+            # 确保 quilt 目录存在
+            mkdir -p /workdir/conf/patches && \
+            touch /workdir/conf/patches/series && \
+            
             quilt init && \
             chown -R buildbot:buildbot /workdir
           "
@@ -53,19 +59,28 @@ jobs:
           -v $PWD:/workdir \
           -w /workdir \
           -e ENV=rak_rak7391 \
+          -e QUILT_PATCHES=/workdir/conf/patches \
           chirpstack-gateway-os-builder \
           bash -c "
             # 配置 Git 安全目录
             git config --global --add safe.directory /workdir && \
             git config --global --add safe.directory /workdir/openwrt && \
             
+            # 确保目标配置目录存在
+            mkdir -p conf && \
+            
+            # 切换环境配置
             cd openwrt && quilt pop -a || true && \
             cd .. && \
             rm -f conf/files conf/patches conf/.config && \
-            ln -s rak_rak7391/files conf/files && \
-            ln -s rak_rak7391/patches conf/patches && \
-            ln -s rak_rak7391/.config conf/.config && \
-            cd openwrt && quilt push -a && \
+            mkdir -p conf && \
+            ln -sf ../rak_rak7391/files conf/files && \
+            ln -sf ../rak_rak7391/patches conf/patches && \
+            ln -sf ../rak_rak7391/.config conf/.config && \
+            
+            # 应用补丁并构建
+            cd openwrt && \
+            [ -f ../conf/patches/series ] && quilt push -a || true && \
             make -j\$(nproc) V=s
           "
 
