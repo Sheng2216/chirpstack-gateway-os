@@ -16,43 +16,33 @@ jobs:
       with:
         submodules: 'recursive'
 
-    - name: Set up Docker permissions
-      run: |
-        sudo groupadd docker || true
-        sudo usermod -aG docker $USER
-        newgrp docker
-
     - name: Prepare directories
       run: |
-        # Create necessary directories with proper permissions
-        sudo mkdir -p openwrt/feeds openwrt/files
-        sudo chown -R $USER:$USER .
-        sudo chmod -R 755 .
-        
-        # Debug information
-        ls -la
-        ls -la openwrt/
+        # 创建必要的目录并赋予正确权限（无需 sudo）
+        mkdir -p openwrt/feeds openwrt/files conf/envs
+        chmod -R 777 openwrt/feeds openwrt/files conf
+
+    - name: Build Docker environment
+      run: |
+        # 构建 Docker 镜像时指定用户和组 ID（与宿主机一致）
+        docker compose build \
+          --build-arg UID=$(id -u) \
+          --build-arg GID=$(id -g)
 
     - name: Initialize build environment
       run: |
-        make init
-        
-    - name: Enter development shell and build
+        # 在 Docker 容器中以当前用户运行命令
+        docker compose run --rm -u $(id -u):$(id -g) chirpstack-gateway-os make init
+
+    - name: Switch environment and build
       run: |
-        # Create a script to run commands in docker
-        cat > build.sh << 'EOF'
-        #!/bin/bash
-        make switch-env ENV=rak_rak7391
-        make
-        EOF
-        chmod +x build.sh
-        
-        # Run the build script in docker environment
-        make devshell CMD="./build.sh"
+        # 直接通过 Docker 运行构建命令（无需进入交互式 shell）
+        docker compose run --rm -u $(id -u):$(id -g) chirpstack-gateway-os \
+          sh -c "make switch-env ENV=rak_rak7391 && make build JOBS=$(nproc)"
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: firmware
-        path: bin/
+        path: openwrt/bin/
         retention-days: 7
