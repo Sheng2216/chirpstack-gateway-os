@@ -19,8 +19,24 @@ jobs:
     - name: Set up Docker
       uses: docker/setup-buildx-action@v3
 
+    - name: Prepare directories and permissions
+      run: |
+        # Create necessary directories
+        sudo mkdir -p openwrt/feeds
+        sudo mkdir -p openwrt/files
+        sudo mkdir -p conf/.config
+        
+        # Set proper permissions
+        sudo chown -R $USER:$USER .
+        sudo chmod -R 755 .
+
     - name: Initialize build environment
       run: |
+        # Debug information
+        pwd
+        ls -la
+        
+        # Initialize the environment
         make init
         
     - name: Enter development shell and build
