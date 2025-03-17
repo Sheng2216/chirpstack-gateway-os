@@ -21,21 +21,21 @@ jobs:
 
     - name: Build Docker image
       run: |
-        # 创建必要的目录
         mkdir -p openwrt/feeds openwrt/files
-        
-        # 构建 Docker 镜像
         docker build -t chirpstack-gateway-os-builder -f Dockerfile-devel .
 
     - name: Initialize OpenWrt
       run: |
-        # 使用 root 用户运行初始化命令
         docker run --rm \
           -v $PWD:/workdir \
           -w /workdir \
           --user root \
           chirpstack-gateway-os-builder \
           bash -c "
+            # 配置 Git 安全目录
+            git config --global --add safe.directory /workdir && \
+            git config --global --add safe.directory /workdir/openwrt && \
+            
             git submodule init && \
             git submodule update && \
             cp feeds.conf.default openwrt/feeds.conf.default && \
@@ -49,13 +49,16 @@ jobs:
 
     - name: Configure and Build
       run: |
-        # 使用 buildbot 用户运行构建命令
         docker run --rm \
           -v $PWD:/workdir \
           -w /workdir \
           -e ENV=rak_rak7391 \
           chirpstack-gateway-os-builder \
           bash -c "
+            # 配置 Git 安全目录
+            git config --global --add safe.directory /workdir && \
+            git config --global --add safe.directory /workdir/openwrt && \
+            
             cd openwrt && quilt pop -a || true && \
             cd .. && \
             rm -f conf/files conf/patches conf/.config && \
