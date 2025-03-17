@@ -1,9 +1,11 @@
 .PHONY: build clean init update devshell show-envs switch-env
 
+# Default number of jobs for parallel compilation
+JOBS ?= $(shell nproc)
 # Build the OpenWrt image.
 # Note: execute this within the devshell.
 build:
-	cd openwrt && make
+        cd openwrt && make -j$(JOBS) V=s
 
 # Initialize the OpenWrt environment.
 init:
