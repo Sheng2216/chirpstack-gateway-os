@@ -22,6 +22,17 @@ jobs:
         sudo usermod -aG docker $USER
         newgrp docker
 
+    - name: Prepare directories
+      run: |
+        # Create necessary directories with proper permissions
+        sudo mkdir -p openwrt/feeds openwrt/files
+        sudo chown -R $USER:$USER .
+        sudo chmod -R 755 .
+        
+        # Debug information
+        ls -la
+        ls -la openwrt/
+
     - name: Initialize build environment
       run: |
         make init
