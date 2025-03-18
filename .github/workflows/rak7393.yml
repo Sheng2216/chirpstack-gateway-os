@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [main, master]
-  pull_request:
 
 jobs:
   build-openwrt:
@@ -18,8 +17,16 @@ jobs:
       - name: Setup Docker
         uses: docker/setup-buildx-action@v3
 
+      - name: Fix directory permissions
+        run: |
+          sudo chown -R $USER:$USER .
+          mkdir -p openwrt
+
       - name: Initialize environment
         run: |
+          docker compose build --no-cache
+          docker compose run --rm --user root chirpstack-gateway-os \
+            chown -R buildbot:buildbot /workdir
           make init
 
       - name: Switch build environment
@@ -36,6 +43,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: openwrt-images
-          path: |
-            openwrt/bin/targets/**/*
+          path: openwrt/bin/targets/**/*
           retention-days: 5
