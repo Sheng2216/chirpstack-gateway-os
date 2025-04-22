@@ -1,71 +1,72 @@
-name: Build OpenWrt Image
+name: Build OpenWrt
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ master ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4.1.1
-        with:
-          submodules: 'recursive'
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.0.0
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          ca-certificates \
+          clang \
+          flex \
+          bison \
+          g++ \
+          gawk \
+          gcc-multilib \
+          g++-multilib \
+          gettext \
+          git \
+          libncurses5-dev \
+          libssl-dev \
+          python3-distutils \
+          rsync \
+          unzip \
+          zlib1g-dev \
+          file \
+          wget \
+          curl \
+          quilt \
+          nano
 
-      - name: Fix permissions and prepare environment
-        run: |
-          # 确保工作目录权限正确
-          sudo chown -R $(id -u):$(id -g) .
-          sudo chmod -R 755 .
-          
-          # 创建必要的目录并设置权限
-          mkdir -p openwrt/feeds
-          sudo chown -R $(id -u):$(id -g) openwrt
-          
-          # 配置 git 全局设置
-          git config --global --add safe.directory '*'
-          git config --global --add safe.directory $(pwd)
-          git config --global --add safe.directory $(pwd)/openwrt
+    - name: Set environment variables
+      run: |
+        echo "GCC_COLORS=error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01" >> $GITHUB_ENV
 
-      - name: Initialize OpenWrt environment
-        run: |
-          docker compose run \
-            --rm \
-            --user $(id -u):$(id -g) \
-            -e HOME=/tmp \
-            -e USER_ID=$(id -u) \
-            -e GROUP_ID=$(id -g) \
-            chirpstack-gateway-os \
-            bash -c "
-              git config --global --add safe.directory '*' && \
-              git config --global --add safe.directory /workdir && \
-              git config --global --add safe.directory /workdir/openwrt && \
-              make init
-            "
+    - name: Initialize OpenWrt
+      run: |
+        make init
 
-      - name: Build OpenWrt image
-        run: |
-          docker compose run \
-            --rm \
-            --user $(id -u):$(id -g) \
-            -e HOME=/tmp \
-            -e USER_ID=$(id -u) \
-            -e GROUP_ID=$(id -g) \
-            chirpstack-gateway-os \
-            bash -c "
-              git config --global --add safe.directory '*' && \
-              git config --global --add safe.directory /workdir && \
-              git config --global --add safe.directory /workdir/openwrt && \
-              make switch-env rak_rak7391 && \
-              make -j$(nproc) V=s
-            "
+    - name: Switch to RAK7391 environment
+      run: |
+        # Create necessary symlinks and switch environment
+        rm -f conf/files conf/patches conf/.config || true
+        ln -s rak_rak7391/files conf/files
+        ln -s rak_rak7391/patches conf/patches
+        ln -s rak_rak7391/.config conf/.config
+        cd openwrt && quilt push -a || true
 
+    - name: Build OpenWrt
+      run: |
+        make -j$(nproc) V=s
 
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: openwrt-firmware
+        path: openwrt/bin/targets/
 
