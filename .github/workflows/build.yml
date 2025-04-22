@@ -31,13 +31,14 @@ jobs:
             -e USER_ID=$(id -u) \
             -e GROUP_ID=$(id -g) \
             chirpstack-gateway-os \
-            make init
+            bash -c "git config --global --add safe.directory /workdir && make init"
 
       - name: Build OpenWrt image
         run: |
           # Create a script to run commands inside container
           cat > build.sh << 'EOF'
           #!/bin/bash
+          git config --global --add safe.directory /workdir
           make switch-env rak_rak7391
           make -j$(nproc) V=s
           EOF
@@ -50,4 +51,5 @@ jobs:
             -e GROUP_ID=$(id -g) \
             chirpstack-gateway-os \
             /bin/bash -c "./build.sh"
+
 
