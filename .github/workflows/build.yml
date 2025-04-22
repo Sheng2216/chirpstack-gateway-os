@@ -19,37 +19,53 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.0.0
 
-      - name: Set correct permissions
+      - name: Fix permissions and prepare environment
         run: |
+          # 确保工作目录权限正确
           sudo chown -R $(id -u):$(id -g) .
           sudo chmod -R 755 .
+          
+          # 创建必要的目录并设置权限
+          mkdir -p openwrt/feeds
+          sudo chown -R $(id -u):$(id -g) openwrt
+          
+          # 配置 git 全局设置
+          git config --global --add safe.directory '*'
+          git config --global --add safe.directory $(pwd)
+          git config --global --add safe.directory $(pwd)/openwrt
 
       - name: Initialize OpenWrt environment
         run: |
           docker compose run \
             --rm \
+            --user $(id -u):$(id -g) \
+            -e HOME=/tmp \
             -e USER_ID=$(id -u) \
             -e GROUP_ID=$(id -g) \
             chirpstack-gateway-os \
-            bash -c "git config --global --add safe.directory /workdir && make init"
+            bash -c "
+              git config --global --add safe.directory '*' && \
+              git config --global --add safe.directory /workdir && \
+              git config --global --add safe.directory /workdir/openwrt && \
+              make init
+            "
 
       - name: Build OpenWrt image
         run: |
-          # Create a script to run commands inside container
-          cat > build.sh << 'EOF'
-          #!/bin/bash
-          git config --global --add safe.directory /workdir
-          make switch-env rak_rak7391
-          make -j$(nproc) V=s
-          EOF
-          chmod +x build.sh
-
-          # Run the build script inside the container
           docker compose run \
             --rm \
+            --user $(id -u):$(id -g) \
+            -e HOME=/tmp \
             -e USER_ID=$(id -u) \
             -e GROUP_ID=$(id -g) \
             chirpstack-gateway-os \
-            /bin/bash -c "./build.sh"
+            bash -c "
+              git config --global --add safe.directory '*' && \
+              git config --global --add safe.directory /workdir && \
+              git config --global --add safe.directory /workdir/openwrt && \
+              make switch-env rak_rak7391 && \
+              make -j$(nproc) V=s
+            "
+
 
 
