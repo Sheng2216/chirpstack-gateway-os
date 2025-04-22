@@ -41,9 +41,4 @@ jobs:
             chirpstack-gateway-os \
             /bin/bash -c "./build.sh"
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: openwrt-images
-          path: openwrt/bin/targets/
-          if-no-files-found: error
+     
