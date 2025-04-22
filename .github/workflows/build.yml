@@ -64,9 +64,9 @@ jobs:
       run: |
         make -j$(nproc) V=s
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: openwrt-firmware
-        path: openwrt/bin/targets/
+    # - name: Upload artifacts
+    #   uses: actions/upload-artifact@v3
+    #   with:
+    #     name: openwrt-firmware
+    #     path: openwrt/bin/targets/
 
