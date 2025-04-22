@@ -1,0 +1,49 @@
+name: Build OpenWrt Image
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Initialize OpenWrt environment
+        run: |
+          make init
+
+      - name: Build OpenWrt image
+        run: |
+          # Create a script to run commands inside container
+          cat > build.sh << 'EOF'
+          #!/bin/bash
+          make switch-env rak_rak7391
+          make -j$(nproc) V=s
+          EOF
+          chmod +x build.sh
+
+          # Run the build script inside the container
+          docker compose run \
+            --rm \
+            -e USER_ID=$(id -u) \
+            -e GROUP_ID=$(id -g) \
+            chirpstack-gateway-os \
+            /bin/bash -c "./build.sh"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: openwrt-images
+          path: openwrt/bin/targets/
+          if-no-files-found: error
